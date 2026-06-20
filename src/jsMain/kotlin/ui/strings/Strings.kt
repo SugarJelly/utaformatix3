@@ -458,6 +458,26 @@ enum class Strings(
         ru = "Максимальное количество дорожек",
         fr = "Nombre maximal de pistes",
     ),
+    TrackOrder(
+        en = "Reorder tracks",
+        ja = "トラックの並べ替え",
+        zhCN = "音轨排序",
+    ),
+    TrackOrderDescription(
+        en = "Change the order of the tracks in the output.",
+        ja = "出力されるトラックの順番を変更します。",
+        zhCN = "调整导出工程中音轨的顺序。",
+    ),
+    TrackOrderItemLabel(
+        en = "#{{number}}",
+        ja = "#{{number}}",
+        zhCN = "#{{number}}",
+    ),
+    TrackOrderMoveMainToTopButton(
+        en = "Move main tracks to top",
+        ja = "メイントラックを先頭に移動",
+        zhCN = "将主音轨移到最前",
+    ),
     NextButton(
         en = "Next",
         ja = "次へ",

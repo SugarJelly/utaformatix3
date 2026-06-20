@@ -60,6 +60,7 @@ import ui.configuration.PitchConversionBlock
 import ui.configuration.ProjectSplitBlock
 import ui.configuration.ProjectZoomBlock
 import ui.configuration.SlightRestsFillingBlock
+import ui.configuration.TrackOrderBlock
 import ui.strings.Strings
 import ui.strings.string
 
@@ -221,6 +222,20 @@ val ConfigurationEditor =
                     mappingRequest = PhonemesMappingRequest(),
                 )
             }
+        val (trackOrder, setTrackOrder) =
+            useState {
+                val tracks =
+                    props.projects
+                        .singleOrNull()
+                        ?.tracks
+                        .orEmpty()
+                TrackOrderState(
+                    isAvailable = tracks.size > 1,
+                    isOn = false,
+                    order = tracks.indices.toList(),
+                    trackNames = tracks.map { it.name },
+                )
+            }
         var dialogError by useState(DialogErrorState())
 
         fun isReady() =
@@ -287,6 +302,12 @@ val ConfigurationEditor =
                 submitState = setProjectSplit
             }
         }
+        if (trackOrder.isAvailable) {
+            TrackOrderBlock {
+                initialState = trackOrder
+                submitState = setTrackOrder
+            }
+        }
         buildNextButton(
             scope,
             props,
@@ -300,6 +321,7 @@ val ConfigurationEditor =
             projectZoom,
             projectSplit,
             phonemesConversion,
+            trackOrder,
             setProgress = { progress = it },
             onDialogError = { dialogError = it },
         )
@@ -327,6 +349,7 @@ private fun ChildrenBuilder.buildNextButton(
     projectZoom: ProjectZoomState,
     projectSplit: ProjectSplitState,
     phonemesConversion: PhonemesConversionState,
+    trackOrder: TrackOrderState,
     setProgress: (ProgressProps) -> Unit,
     onDialogError: (DialogErrorState) -> Unit,
 ) {
@@ -351,6 +374,7 @@ private fun ChildrenBuilder.buildNextButton(
                     projectZoom,
                     projectSplit,
                     phonemesConversion,
+                    trackOrder,
                     setProgress,
                     onDialogError,
                 )
@@ -372,6 +396,7 @@ private fun process(
     projectZoom: ProjectZoomState,
     projectSplit: ProjectSplitState,
     phonemesConversion: PhonemesConversionState,
+    trackOrder: TrackOrderState,
     setProgress: (ProgressProps) -> Unit,
     onDialogError: (DialogErrorState) -> Unit,
 ) {
@@ -403,6 +428,13 @@ private fun process(
                                 fillRests(slightRestsFilling.excludedMaxLength)
                             }.runIf(projectZoom.isOn) {
                                 zoom(projectZoom.factorValue)
+                            }.runIf(trackOrder.isOn) {
+                                copy(
+                                    tracks =
+                                        trackOrder.order
+                                            .map { tracks[it] }
+                                            .mapIndexed { newId, track -> track.copy(id = newId) },
+                                )
                             }.mapPhonemes(phonemesConversion.resolvedMappingRequest)
 
                     val featureConfigs =
@@ -607,6 +639,45 @@ data class ProjectSplitState(
             } else {
                 true
             }
+}
+
+@Serializable
+data class TrackOrderState(
+    val isAvailable: Boolean,
+    val isOn: Boolean,
+    val order: List<Int>,
+    val trackNames: List<String>,
+) : SubState() {
+    fun moveUp(index: Int) = move(index, -1)
+
+    fun moveDown(index: Int) = move(index, 1)
+
+    private fun move(
+        index: Int,
+        indexDiff: Int,
+    ): TrackOrderState {
+        val targetIndex = index + indexDiff
+        if (targetIndex !in order.indices) return this
+        val newOrder = order.toMutableList()
+        newOrder[index] = order[targetIndex]
+        newOrder[targetIndex] = order[index]
+        return copy(order = newOrder)
+    }
+
+    fun moveMainTracksToTop(): TrackOrderState {
+        val (mainTracks, otherTracks) = order.partition { isMainTrack(trackNames[it]) }
+        val sortedMainTracks = mainTracks.sortedBy { trackNames[it].lowercase() }
+        return copy(order = sortedMainTracks + otherTracks)
+    }
+
+    private fun isMainTrack(name: String): Boolean {
+        val lowerName = name.lowercase()
+        return MAIN_TRACK_KEYWORDS.any { lowerName.contains(it) }
+    }
+
+    companion object {
+        private val MAIN_TRACK_KEYWORDS = listOf("主", "main", "メイン", "mein", "lead")
+    }
 }
 
 @Serializable
